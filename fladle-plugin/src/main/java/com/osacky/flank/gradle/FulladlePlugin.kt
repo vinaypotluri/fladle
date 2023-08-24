@@ -10,8 +10,11 @@ import org.gradle.kotlin.dsl.getByType
  */
 class FulladlePlugin : Plugin<Project> {
   override fun apply(root: Project) {
+    // applied at the root level
     check(root.parent == null) { "Fulladle must be applied in the root project in order to configure subprojects." }
     FladlePluginDelegate().apply(root)
+
+    var requiredModules = root.properties["moduleList"]?.toString()?.split(",")?.map { it.trim() } ?: listOf()
 
     val flankGradleExtension = root.extensions.getByType(FlankGradleExtension::class)
 
@@ -37,19 +40,37 @@ class FulladlePlugin : Plugin<Project> {
       doLast {
         // first configure all app modules
         root.subprojects {
+
           if (!hasAndroidTest)
             return@subprojects
           modulesEnabled = true
-          if (isAndroidAppModule)
+
+          if (isAndroidAppModule) {
+
+            if(requiredModules.isNotEmpty() && !requiredModules.contains(this.name)) {
+              println("[CUSTOM] skipping app module: ${this.name}")
+              return@subprojects
+            }
+
             configureModule(this, flankGradleExtension)
+          }
         }
         // then configure all library modules
         root.subprojects {
           if (!hasAndroidTest)
             return@subprojects
           modulesEnabled = true
-          if (isAndroidLibraryModule)
+
+          if (isAndroidLibraryModule) {
+
+            if(requiredModules.isNotEmpty() && !requiredModules.contains(this.name)) {
+//              println("[CUSTOM] skipping app module: ${this.name}")
+              return@subprojects
+            }
+
             configureModule(this, flankGradleExtension)
+//            println("[CUSTOM] subproject : library module : ${this.name}")
+          }
         }
 
         check(modulesEnabled) {
